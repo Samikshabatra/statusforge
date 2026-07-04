@@ -1,0 +1,39 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	count(count)
+	progress(progress)
+	risk(risk)
+	supervisor(supervisor)
+	dependency(dependency)
+	summarize(summarize)
+	validate_llm(validate_llm)
+	build_blocks(build_blocks)
+	add_here(add_here)
+	post(post)
+	fail(fail)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> count;
+	add_here --> post;
+	build_blocks -. &nbsp;mention&nbsp; .-> add_here;
+	build_blocks -. &nbsp;normal&nbsp; .-> post;
+	count --> progress;
+	count --> risk;
+	dependency --> summarize;
+	progress --> supervisor;
+	risk --> supervisor;
+	summarize --> validate_llm;
+	supervisor -.-> dependency;
+	supervisor -.-> summarize;
+	validate_llm -. &nbsp;ok&nbsp; .-> build_blocks;
+	validate_llm -.-> fail;
+	validate_llm -. &nbsp;retry&nbsp; .-> summarize;
+	fail --> __end__;
+	post --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

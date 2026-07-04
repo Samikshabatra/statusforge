@@ -1,0 +1,757 @@
+{
+  "name": "Roadmap Slack Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -144,
+        144
+      ],
+      "id": "3c364e6c-c76f-40b9-bdaa-c620c3612048",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appeluaViGRDZJKDQ",
+          "mode": "list",
+          "cachedResultName": "Roadmap Digest",
+          "cachedResultUrl": "https://airtable.com/appeluaViGRDZJKDQ"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl5oMK0fmzpVHCtW",
+          "mode": "list",
+          "cachedResultName": "Roadmap",
+          "cachedResultUrl": "https://airtable.com/appeluaViGRDZJKDQ/tbl5oMK0fmzpVHCtW"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        96,
+        144
+      ],
+      "id": "5e85c4a0-28dc-4c7f-94cd-0e077ac36b77",
+      "name": "Search records",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "KAhI1YLhqjogLwie",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const first = $input.first().json;\n\nfunction fail(msg) {\n  throw new Error('LLM output validation failed: ' + msg);\n}\n\nlet out = first.output ?? first.text ?? first;\nif (typeof out === 'string') {\n  const cleaned = out.trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n  try {\n    out = JSON.parse(cleaned);\n  } catch (e) {\n    fail('model did not return valid JSON: ' + e.message);\n  }\n}\n\nif (typeof out !== 'object' || out === null) fail('output is not an object');\nif (typeof out.executive_summary !== 'string' || out.executive_summary.trim() === '')\n  fail('executive_summary missing or empty');\nif (!Array.isArray(out.high_priority_items)) fail('high_priority_items is not an array');\nif (!Array.isArray(out.blocked_items)) fail('blocked_items is not an array');\nif (!Array.isArray(out.recommendations) || out.recommendations.length === 0)\n  fail('recommendations missing or empty');\n\nfor (const it of out.high_priority_items) {\n  if (!it.item_id || !it.feature || !it.why_it_matters)\n    fail('a high_priority_item is missing item_id/feature/why_it_matters');\n}\nfor (const it of out.blocked_items) {\n  if (!it.item_id || !it.feature || !it.blocker || !it.suggested_action)\n    fail('a blocked_item is missing item_id/feature/blocker/suggested_action');\n}\n\n// Cross-check against deterministic counts — the LLM must not add or drop items\nconst counts = $('Validate + Count').first().json;\nif (out.high_priority_items.length !== counts.highCount)\n  fail(`LLM listed ${out.high_priority_items.length} high items, deterministic count is ${counts.highCount}`);\nif (out.blocked_items.length !== counts.blockedCount)\n  fail(`LLM listed ${out.blocked_items.length} blocked items, deterministic count is ${counts.blockedCount}`);\n\nreturn [{ json: out }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        160
+      ],
+      "id": "5008acd9-1652-42f5-9ac6-ee63db9db481",
+      "name": "Validate LLM Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "const digest = $input.first().json;\nconst counts = $('Validate + Count').first().json;\n\n// ---- CONFIG (hardcoded here for the demo; in production these belong in n8n Static\n//      Data or environment variables, not the Code node). Base/table id are the\n//      appXXXX/tblXXXX parts of the Airtable URL. -----------------------------------\nconst AIRTABLE_BASE = 'appeluaViGRDZJKDQ';\nconst AIRTABLE_TABLE = 'tbl5oMK0fmzpVHCtW';\n// Owner -> Slack member id. In production this is a lookup table (Static Data / a Config\n// node). The sample roadmap's owners are fictional, so one is mapped to a real member id\n// for the demo; unmapped owners fall back to their plain name.\nconst OWNER_SLACK_IDS = {\n  'Ravi T': 'U0BEYUAAAHG',\n};\n\nconst byId = {};\nfor (const r of counts.records) byId[r.itemId] = r;\n\nconst linkable = AIRTABLE_BASE.startsWith('app') && !AIRTABLE_BASE.includes('XXXX');\nfunction link(itemId, feature) {\n  const rec = byId[itemId];\n  return linkable && rec && rec.recordId\n    ? `<https://airtable.com/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${rec.recordId}|${feature}>`\n    : feature;\n}\nfunction ownerTag(owner) {\n  return OWNER_SLACK_IDS[owner] ? `<@${OWNER_SLACK_IDS[owner]}>` : (owner || '—');\n}\n\nconst blocks = [];\nblocks.push({ type: 'header', text: { type: 'plain_text', text: '📋 Daily Roadmap Digest', emoji: true } });\nblocks.push({\n  type: 'context',\n  elements: [{\n    type: 'mrkdwn',\n    text: `*${counts.recordCount}* items  •  🔥 *${counts.highCount}* High priority  •  ⛔ *${counts.blockedCount}* Blocked  •  🕒 *${counts.staleCount}* stale`,\n  }],\n});\nblocks.push({ type: 'divider' });\n\nblocks.push({ type: 'section', text: { type: 'mrkdwn', text: `*Executive Summary*\\n${digest.executive_summary}` } });\n\n// High priority\nblocks.push({ type: 'divider' });\nblocks.push({ type: 'section', text: { type: 'mrkdwn', text: `*🔥 High Priority (${counts.highCount})*` } });\ndigest.high_priority_items.forEach((it, i) => {\n  const rec = byId[it.item_id];\n  const staleFlag = rec && rec.stale ? '  🕒 _stale_' : '';\n  blocks.push({\n    type: 'section',\n    text: {\n      type: 'mrkdwn',\n      text: `*${i + 1}. ${link(it.item_id, it.feature)}*  (\\`${it.item_id}\\` • ${it.owner || '—'} • ${it.target_quarter || '—'})${staleFlag}\\n${it.why_it_matters}`,\n    },\n  });\n});\n\n// Blocked — @-mention the actual owner (accountability, not just broadcast)\nif (digest.blocked_items.length > 0) {\n  blocks.push({ type: 'divider' });\n  blocks.push({ type: 'section', text: { type: 'mrkdwn', text: `*⛔ Blocked (${counts.blockedCount})*` } });\n  digest.blocked_items.forEach((it) => {\n    blocks.push({\n      type: 'section',\n      text: {\n        type: 'mrkdwn',\n        text: `*${link(it.item_id, it.feature)}*  (\\`${it.item_id}\\` • ${ownerTag(it.owner)})\\nBlocker: ${it.blocker}\\n➡️ ${it.suggested_action}`,\n      },\n    });\n  });\n}\n\n// Recommendations\nblocks.push({ type: 'divider' });\nblocks.push({\n  type: 'section',\n  text: { type: 'mrkdwn', text: `*✅ Recommendations*\\n${digest.recommendations.map((r) => `•  ${r}`).join('\\n')}` },\n});\n\n// Footer\nconst dist = Object.entries(counts.statusDistribution).map(([k, v]) => `${k}: *${v}*`).join('   |   ');\nlet footer = `Generated ${counts.runTimestamp}`;\nif (counts.skippedCount > 0) footer += `  •  ⚠️ ${counts.skippedCount} invalid record(s) skipped`;\nblocks.push({ type: 'divider' });\nblocks.push({ type: 'context', elements: [\n  { type: 'mrkdwn', text: `Status — ${dist}` },\n  { type: 'mrkdwn', text: footer },\n] });\n\nreturn [{\n  json: {\n    blocks,\n    blocksJson: JSON.stringify({ blocks }),\n    highCount: counts.highCount,\n    blockedCount: counts.blockedCount,\n    notificationText: `Daily Roadmap Digest — ${counts.highCount} High priority, ${counts.blockedCount} Blocked`,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        160
+      ],
+      "id": "4135881d-f677-4884-b0ab-0948334bc307",
+      "name": "Build Slack Blocks"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ba84a3d8-c21f-4904-8193-0f4f4dea7cad",
+              "leftValue": "={{ $json.highCount }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2752,
+        160
+      ],
+      "id": "0c1c9cb9-25ff-4671-9540-a671269b29a1",
+      "name": "High Count > 5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\n\nconst blocks = [\n  {\n    type: 'section',\n    text: {\n      type: 'mrkdwn',\n      text: `<!here> *${j.highCount} items are High priority — attention needed.*`,\n    },\n  },\n  ...j.blocks,\n];\n\nreturn [\n  {\n    json: {\n      ...j,\n      blocks,\n      blocksJson: JSON.stringify({ blocks }),\n      notificationText: `@here ${j.notificationText}`,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        48
+      ],
+      "id": "4b73a869-198c-4e54-bf93-44cb1cbe335a",
+      "name": "Prepend @here"
+    },
+    {
+      "parameters": {
+        "jsCode": "const REQUIRED = ['Feature', 'Priority', 'Status', 'Owner'];\nconst KNOWN_PRIORITIES = ['high', 'medium', 'low'];\nconst KNOWN_STATUSES = ['in progress', 'not started', 'blocked'];\nconst STALE_DAYS = 14; // not updated in this many days => \"stale\"\n\nconst items = $input.all();\nif (items.length === 0) {\n  throw new Error('Airtable returned 0 records — aborting digest run.');\n}\n\nconst now = new Date();\n\n// Robust date parsing: accepts YYYY-MM-DD (Airtable/ISO) and DD-MM-YYYY / DD/MM/YYYY.\nfunction daysSince(dateStr) {\n  if (!dateStr) return null;\n  const s = String(dateStr).trim();\n  let d;\n  if (/^\\d{4}-\\d{2}-\\d{2}/.test(s)) {\n    d = new Date(s);\n  } else {\n    const m = s.match(/^(\\d{1,2})[-/](\\d{1,2})[-/](\\d{4})$/);\n    d = m ? new Date(`${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`) : new Date(s);\n  }\n  return isNaN(d) ? null : Math.floor((now - d) / 86400000);\n}\n\nconst valid = [];\nconst skipped = [];\n\nfor (const item of items) {\n  const raw = item.json;\n  const f = raw.fields ?? raw; // Airtable v1 nests under \"fields\", v2 flattens\n\n  const missing = REQUIRED.filter(\n    (k) => f[k] === undefined || f[k] === null || String(f[k]).trim() === ''\n  );\n  if (missing.length > 0) {\n    skipped.push({ itemId: f['Item ID'] ?? raw.id ?? 'unknown', reason: 'missing: ' + missing.join(', ') });\n    continue;\n  }\n\n  // Normalize once, validate against known enums — tolerant of case/whitespace typos.\n  const priorityKey = String(f['Priority']).trim().toLowerCase();\n  const statusKey = String(f['Status']).trim().toLowerCase();\n  if (!KNOWN_PRIORITIES.includes(priorityKey)) {\n    skipped.push({ itemId: f['Item ID'] ?? raw.id, reason: `unknown priority \"${f['Priority']}\"` });\n    continue;\n  }\n  if (!KNOWN_STATUSES.includes(statusKey)) {\n    skipped.push({ itemId: f['Item ID'] ?? raw.id, reason: `unknown status \"${f['Status']}\"` });\n    continue;\n  }\n\n  const lastUpdated = f['Last Updated'] ?? '';\n  const days = daysSince(lastUpdated);\n  valid.push({\n    itemId: f['Item ID'] ?? raw.id,\n    recordId: raw.id ?? '', // Airtable rec... id, for deep links in Build Slack Blocks\n    feature: f['Feature'],\n    status: f['Status'], // original casing for display\n    statusKey, // normalized for logic\n    priority: f['Priority'],\n    priorityKey, // normalized for logic\n    owner: f['Owner'],\n    targetQuarter: f['Target Quarter'] ?? '',\n    description: f['Description'] ?? '',\n    lastUpdated,\n    daysSinceUpdate: days,\n    stale: days !== null && days > STALE_DAYS,\n  });\n}\n\nif (valid.length === 0) {\n  throw new Error('All records failed field validation — aborting digest run.');\n}\n\nconst highItems = valid.filter((r) => r.priorityKey === 'high');\nconst blockedItems = valid.filter((r) => r.statusKey === 'blocked');\nconst staleItems = valid.filter((r) => r.stale);\nconst highCount = highItems.length;\n\nconst statusDistribution = {};\nfor (const r of valid) statusDistribution[r.status] = (statusDistribution[r.status] ?? 0) + 1;\n\nreturn [\n  {\n    json: {\n      records: valid,\n      recordCount: valid.length,\n      skippedCount: skipped.length,\n      skipped,\n      highCount,\n      blockedCount: blockedItems.length,\n      blockedIds: blockedItems.map((r) => r.itemId),\n      staleCount: staleItems.length,\n      staleIds: staleItems.map((r) => r.itemId),\n      statusDistribution,\n      mentionHere: highCount > 5, // deterministic @here decision\n      runTimestamp: now.toISOString(),\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        144
+      ],
+      "id": "540d1963-5868-42dd-a897-02c4cab7d434",
+      "name": "Validate + Count"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze PROGRESS / MOMENTUM for today's roadmap ({{ $json.recordCount }} items).\n\nItems:\n{{ $json.records.map(r => [r.itemId, r.feature, 'Status: ' + r.status, 'Priority: ' + r.priority, 'Updated ' + r.daysSinceUpdate + 'd ago' + (r.stale ? ' (STALE)' : '')].join(' | ')).join('\\n') }}\n\nStatus distribution: {{ Object.entries($json.statusDistribution).map(e => e[0] + ': ' + e[1]).join(', ') }}\nStale items (14+ days without update): {{ $json.staleCount }}\n\nIn 2-3 sentences: what is advancing, what is stalled (High priority still Not Started, or flagged STALE above), and the overall velocity signal. The staleness is pre-computed — trust the STALE flags, do not estimate dates yourself.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a delivery/progress analyst for a product team. You assess momentum from roadmap status data: what is advancing, what is stalled, and the overall velocity signal. Be concise, concrete, and Slack-ready. No preamble, no markdown headers, no JSON — 2 to 3 sentences of prose only."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        608,
+        320
+      ],
+      "id": "5602c7a1-b8f2-4880-b254-8d861533bb24",
+      "name": "Progress Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze RISK for today's roadmap ({{ $json.recordCount }} items).\n\nItems:\n{{ $json.records.map(r => [r.itemId, r.feature, 'Status: ' + r.status, 'Priority: ' + r.priority, 'Owner: ' + r.owner, r.description].join(' | ')).join('\\n') }}\n\nPre-computed: {{ $json.highCount }} High priority, {{ $json.blockedCount }} Blocked ({{ $json.blockedIds.join(', ') }}).\n\nIn 2-3 sentences: the biggest risks — blocked high-priority work, concentration of risk on one owner, and anything time-sensitive.\n",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a risk analyst for a product team. You surface delivery risks from roadmap data: blocked work, concentration of risk on one owner, and time-sensitive exposure. Be concise, concrete, and Slack-ready. No preamble, no markdown headers, no JSON — 2 to 3 sentences of prose only."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        608,
+        -128
+      ],
+      "id": "b3863418-d44c-49cd-8469-2184cc555560",
+      "name": "Risk Analysis Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Today's roadmap export — {{ $('Validate + Count').first().json.recordCount }} valid items (one per line, pipe-delimited):\n\n{{ $('Validate + Count').first().json.records.map(r => [r.itemId, r.feature, 'Priority: ' + r.priority, 'Status: ' + r.status, 'Owner: ' + r.owner, 'Target: ' + r.targetQuarter, 'Updated ' + r.daysSinceUpdate + 'd ago' + (r.stale ? ' (STALE)' : ''), r.description].join(' | ')).join('\\n') }}\n\nPRE-COMPUTED COUNTS (deterministic — use as-is, never alter):\n- High priority items: {{ $('Validate + Count').first().json.highCount }}\n- Blocked items: {{ $('Validate + Count').first().json.blockedCount }} ({{ $('Validate + Count').first().json.blockedIds.join(', ') }})\n- Stale items (not updated in 14+ days): {{ $('Validate + Count').first().json.staleCount }} ({{ $('Validate + Count').first().json.staleIds.join(', ') }})\n- Status distribution: {{ Object.entries($('Validate + Count').first().json.statusDistribution).map(e => e[0] + ': ' + e[1]).join(', ') }}\n- Invalid records skipped: {{ $('Validate + Count').first().json.skippedCount }}\n\nSPECIALIST ANALYSES (incorporate into your narrative; never contradict the counts):\n- Progress: {{ $('Progress Agent').first().json.text }}\n- Risk: {{ $('Risk Analysis Agent').first().json.text }}\n- Dependencies: {{ $('Dependency Agent').isExecuted ? $('Dependency Agent').first().json.text : 'Not required this run.' }}\n\nTreat the deterministic counts from Validate + Count as the single source of truth for every number. High-priority work is PRIMARY — lead with it. Progress and status (In Progress / Not Started) are SECONDARY context. Whenever you cite a number, say exactly what it counts (e.g. \"6 High-priority items\", \"6 items In Progress\") so a priority count is never confused with a status count.\n\nWrite the digest content:\n1. executive_summary — 2 to 3 sentences. LEAD with the High-priority picture: how many High-priority items there are ({{ $('Validate + Count').first().json.highCount }}) and, above all, the {{ $('Validate + Count').first().json.blockedCount }} blocked High-priority items as the main risk to act on today. Only after that, mention progress/status momentum as secondary context.\n2. high_priority_items — exactly {{ $('Validate + Count').first().json.highCount }} High priority items, ranked most-urgent-first, each with a one-sentence why_it_matters.\n3. blocked_items — exactly {{ $('Validate + Count').first().json.blockedCount }} Blocked items, each with what appears to block it and one concrete suggested_action.\n4. recommendations — 2 to 4 short, specific, actionable recommendations for the PM.\n\nReturn ONLY a raw JSON object — no markdown, no code fences, no prose before or after — with exactly these keys:\n{\n  \"executive_summary\": \"string\",\n  \"high_priority_items\": [{ \"item_id\": \"string\", \"feature\": \"string\", \"owner\": \"string\", \"target_quarter\": \"string\", \"why_it_matters\": \"string\" }],\n  \"blocked_items\": [{ \"item_id\": \"string\", \"feature\": \"string\", \"owner\": \"string\", \"blocker\": \"string\", \"suggested_action\": \"string\" }],\n  \"recommendations\": [\"string\"]\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1936,
+        160
+      ],
+      "id": "29af5593-ff1c-45aa-bcb5-78ff46437969",
+      "name": "Summarize & Rank",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0ae5196c-c830-4980-a034-4f6d34d1b04d",
+              "leftValue": "={{ ($('Supervisor').first().json.text || '').trim().toUpperCase().startsWith('YES') }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1520,
+        144
+      ],
+      "id": "205b9022-bb8f-4f6c-9dd9-b5ddcaa01659",
+      "name": "Need another analysis?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze DEPENDENCIES for today's blocked items.\n\nBlocked items:\n{{ $('Validate + Count').first().json.records.filter(r => r.status === 'Blocked').map(r => [r.itemId, r.feature, 'Owner: ' + r.owner, r.description].join(' | ')).join('\\n') }}\n\nIn 2-3 sentences: what each blocked item appears to be waiting on to unblock, and any cross-item dependency that affects sequencing.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a dependency analyst for a product team. Given the blocked items and their descriptions, identify what each is waiting on to unblock, and any cross-item dependency that affects sequencing. Be concise, concrete, and Slack-ready. No preamble, no markdown headers, no JSON — 2 to 3 sentences of prose only."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1696,
+        -144
+      ],
+      "id": "dd53f25b-88f6-4f31-b6ff-0d0300853383",
+      "name": "Dependency Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are the router for a roadmap-digest pipeline. Work in two steps.\n\nSTEP 1 — Identify the high-priority picture:\nHigh-priority items ({{ $('Validate + Count').first().json.highCount }}):\n{{ $('Validate + Count').first().json.records.filter(r => r.priority === 'High').map(r => [r.itemId, r.feature, 'Status: ' + r.status, r.description].join(' | ')).join('\\n') }}\nBlocked among them: {{ $('Validate + Count').first().json.blockedIds.join(', ') }}\n\nSTEP 2 — Decide the route:\nLooking only at the high-priority items above, do any of them have a dependency worth untangling before the digest is written — i.e. a blocker involving a review, another team, or a prerequisite item?\n- If YES, at least one high-priority item has such a dependency: respond YES (route to deeper dependency analysis).\n- If NO, every high-priority item is clear and self-contained: respond NO (go straight to the summary).\n\nRespond with only one word: YES or NO.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the supervisor of a roadmap-digest pipeline. Your only job is to decide whether a deeper DEPENDENCY analysis of the blocked items is warranted before the digest is written. This is a judgment call, not a count. Answer with a single word only: YES or NO."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1120,
+        128
+      ],
+      "id": "5e58446c-3e7d-44bb-af4e-d521edc63b72",
+      "name": "Supervisor",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BEWU1SEK0",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ $json.blocksJson }}",
+        "text": "={{ $json.notificationText }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        3216,
+        176
+      ],
+      "id": "67f8e0b1-02b3-4736-86e1-4474117bde63",
+      "name": "Post Digest",
+      "webhookId": "f8ce86fc-2a05-4f90-b6f8-9e18c80d0cb5",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "slackApi": {
+          "id": "v0c8wiQvP7QuXOj8",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        608,
+        144
+      ],
+      "id": "76077b13-5054-4c6d-9f4c-ae03ace7c261",
+      "name": "LLM – Analysts",
+      "credentials": {
+        "openAiApi": {
+          "id": "I6FsZEWZ1X75HLnt",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1696,
+        48
+      ],
+      "id": "bd907a24-da2f-4461-80ea-0aeb80c565d8",
+      "name": "LLM – Dependency",
+      "credentials": {
+        "openAiApi": {
+          "id": "I6FsZEWZ1X75HLnt",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        368
+      ],
+      "id": "784de0ca-20f9-4184-983c-23c8645339d1",
+      "name": "LLM – Supervisor",
+      "credentials": {
+        "openAiApi": {
+          "id": "I6FsZEWZ1X75HLnt",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1936,
+        384
+      ],
+      "id": "7d7ede9a-9711-44b7-830d-cae9f3f084db",
+      "name": "LLM – Summarizer",
+      "credentials": {
+        "openAiApi": {
+          "id": "I6FsZEWZ1X75HLnt",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BESSSQM6F",
+          "mode": "id"
+        },
+        "text": "=✅ *Digest delivered* —  {{ $('Validate + Count').first().json.highCount }} High · ⛔ {{ $('Validate + Count').first().json.blockedCount }} Blocked · {{ $('Validate + Count').first().json.recordCount }} items{{ $('Validate + Count').first().json.mentionHere ? ' · @here fired' : '' }} Posted to <#{{ $json.channel }}> · message ts {{ $json.ts }} · run {{ $('Validate + Count').first().json.runTimestamp }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        3472,
+        176
+      ],
+      "id": "f8f9aee0-a5fa-4cdf-a9d9-55cae49c5496",
+      "name": "Send a message",
+      "webhookId": "409b13f8-2e4c-47ce-a413-3a77b084d6d3",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "slackApi": {
+          "id": "v0c8wiQvP7QuXOj8",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "7a951cd3-6090-4b5d-b61f-5d4146f41b0e",
+      "name": "Merge All Analyses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        896,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "run-digest",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -128,
+        -32
+      ],
+      "id": "994f5490-57ab-42be-8a08-bfad001efdcd",
+      "name": "Webhook",
+      "webhookId": "8ffece87-d105-4e13-8e30-6ca7933e74c0"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Validate + Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate LLM Output": {
+      "main": [
+        [
+          {
+            "node": "Build Slack Blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack Blocks": {
+      "main": [
+        [
+          {
+            "node": "High Count > 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Count > 5": {
+      "main": [
+        [
+          {
+            "node": "Prepend @here",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Post Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepend @here": {
+      "main": [
+        [
+          {
+            "node": "Post Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate + Count": {
+      "main": [
+        [
+          {
+            "node": "Risk Analysis Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Progress Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Progress Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge All Analyses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Risk Analysis Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge All Analyses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize & Rank": {
+      "main": [
+        [
+          {
+            "node": "Validate LLM Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Need another analysis?": {
+      "main": [
+        [
+          {
+            "node": "Dependency Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Summarize & Rank",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dependency Agent": {
+      "main": [
+        [
+          {
+            "node": "Summarize & Rank",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supervisor": {
+      "main": [
+        [
+          {
+            "node": "Need another analysis?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM – Analysts": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Progress Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Risk Analysis Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM – Dependency": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Dependency Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM – Supervisor": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Supervisor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM – Summarizer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarize & Rank",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Digest": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Analyses": {
+      "main": [
+        [
+          {
+            "node": "Supervisor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "hdBuV5xnvtk0yGal",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "72e08031-a9d8-4768-8588-7cf4d0ae796f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "38e7cb229bf806425dc96337670b9b71f831f3ee15e648de811f2fc729515f3a"
+  },
+  "nodeGroups": [],
+  "id": "2EhXwbt3J0XrEkRd",
+  "tags": []
+}

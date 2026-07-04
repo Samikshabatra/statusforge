@@ -1,0 +1,108 @@
+{
+  "name": "Digest Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "62faa973-b04d-4616-9768-2bf61d7e97c5",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BESSSQM6F",
+          "mode": "id"
+        },
+        "text": "=*Roadmap Digest run FAILED*\n*Workflow:* {{ $json.workflow.name }}\n*Execution ID:* {{ $json.execution.id }}\n*Failed node:* {{ $json.execution.lastNodeExecuted }}\n*Error:* {{ $json.execution.error.message }}\nOpen execution: {{ $json.execution.url }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        32,
+        0
+      ],
+      "id": "99a6e439-c7f5-4fad-ab0d-a8dbb29507f1",
+      "name": "Send a message to #digest-admin",
+      "webhookId": "b26deaa4-030a-465c-a061-550fb54bd668",
+      "credentials": {
+        "slackApi": {
+          "id": "v0c8wiQvP7QuXOj8",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "samikshabatra18@gmail.com",
+        "subject": "Roadmap Digest FAILED — Slack alert undeliverable",
+        "emailType": "text",
+        "message": "=The Slack alert to #digest-admin could not be delivered. Original failure:\n\nWorkflow: {{ $('Error Trigger').first().json.workflow.name }}\nFailed node: {{ $('Error Trigger').first().json.execution.lastNodeExecuted }}\nError: {{ $('Error Trigger').first().json.execution.error.message }}\nExecution: {{ $('Error Trigger').first().json.execution.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        16
+      ],
+      "id": "8ced5069-3ff7-481c-b404-426f8d5a1a11",
+      "name": "Send a message",
+      "webhookId": "03852cf7-326b-47ba-a144-3223b6142b8c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "cOlOSqW6k9lJVzTH",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message to #digest-admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message to #digest-admin": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "cf962d89-1c3d-468a-8d94-1c31cae18d3c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "38e7cb229bf806425dc96337670b9b71f831f3ee15e648de811f2fc729515f3a"
+  },
+  "nodeGroups": [],
+  "id": "hdBuV5xnvtk0yGal",
+  "tags": []
+}

@@ -179,3 +179,16 @@ to demonstrate that `validate_and_count` handles dirty data without breaking the
 
 ![digest-admin log](./docs/assets/slack-digest-admin-log.png)
 
+## Cleanup checklist before final submission
+
+A few small things worth fixing before this goes in front of a reviewer:
+
+- [ ] **Flatten the folder structure** — move `python/`, `workflows/`, `roadmap_airtable_export.csv`, `.gitignore`, and this `README.md` up so they sit directly at the repo root, rather than nested inside an extra `statusforge/` folder.
+- [ ] **Redact the personal email in `workflows/Digest Error Handler.json`** — the Gmail fallback node's `sendTo` field currently has a real personal email address hardcoded. Replace it with a placeholder (e.g. `your-alert-inbox@example.com`) before the JSON goes into a public repo, or better, note in the README that it should be set via an n8n environment variable / credential instead of inline.
+- [ ] **Add a top-level `.gitignore`** covering `.env`, `__pycache__/`, `.venv/`, and `.streamlit/secrets.toml` (the one in `python/.gitignore` should move to repo root if flattening).
+- [ ] Double-check no other webhook URLs, tokens, or personal identifiers are exported inside the workflow JSON files (n8n credential *references* are fine — they're just IDs/names, not secrets — but scan for anything hardcoded in node parameters).
+
+---
+
+*For the deeper technical write-up of the LangGraph implementation specifically —
+including the exact node-by-node design rationale — see [`python/README.md`](./python/README.md).*

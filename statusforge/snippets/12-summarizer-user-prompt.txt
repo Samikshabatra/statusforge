@@ -1,0 +1,37 @@
+Summarizer ("Summarize & Rank") — UPDATED user prompt for the multi-agent version.
+Now fed by the Merge node, so ALL data references use $('Validate + Count') instead of
+$json, and it folds in the two specialist analyses. System message is unchanged.
+Paste into Prompt (User Message), Expression mode.
+=====================================================================================
+
+Today's roadmap export — {{ $('Validate + Count').first().json.recordCount }} valid items (one per line, pipe-delimited):
+
+{{ $('Validate + Count').first().json.records.map(r => [r.itemId, r.feature, 'Priority: ' + r.priority, 'Status: ' + r.status, 'Owner: ' + r.owner, 'Target: ' + r.targetQuarter, 'Updated ' + r.daysSinceUpdate + 'd ago' + (r.stale ? ' (STALE)' : ''), r.description].join(' | ')).join('\n') }}
+
+PRE-COMPUTED COUNTS (deterministic — use as-is, never alter):
+- High priority items: {{ $('Validate + Count').first().json.highCount }}
+- Blocked items: {{ $('Validate + Count').first().json.blockedCount }} ({{ $('Validate + Count').first().json.blockedIds.join(', ') }})
+- Stale items (not updated in 14+ days): {{ $('Validate + Count').first().json.staleCount }} ({{ $('Validate + Count').first().json.staleIds.join(', ') }})
+- Status distribution: {{ Object.entries($('Validate + Count').first().json.statusDistribution).map(e => e[0] + ': ' + e[1]).join(', ') }}
+- Invalid records skipped: {{ $('Validate + Count').first().json.skippedCount }}
+
+SPECIALIST ANALYSES (incorporate into your narrative; never contradict the counts):
+- Progress: {{ $('Progress Agent').first().json.text }}
+- Risk: {{ $('Risk Analysis Agent').first().json.text }}
+- Dependencies: {{ $('Dependency Agent').isExecuted ? $('Dependency Agent').first().json.text : 'Not required this run.' }}
+
+Treat the deterministic counts from Validate + Count as the single source of truth for every number. High-priority work is PRIMARY — lead with it. Progress and status (In Progress / Not Started) are SECONDARY context. Whenever you cite a number, say exactly what it counts (e.g. "6 High-priority items", "6 items In Progress") so a priority count is never confused with a status count.
+
+Write the digest content:
+1. executive_summary — 2 to 3 sentences. LEAD with the High-priority picture: how many High-priority items there are ({{ $('Validate + Count').first().json.highCount }}) and, above all, the {{ $('Validate + Count').first().json.blockedCount }} blocked High-priority items as the main risk to act on today. Only after that, mention progress/status momentum as secondary context.
+2. high_priority_items — exactly {{ $('Validate + Count').first().json.highCount }} High priority items, ranked most-urgent-first, each with a one-sentence why_it_matters.
+3. blocked_items — exactly {{ $('Validate + Count').first().json.blockedCount }} Blocked items, each with what appears to block it and one concrete suggested_action.
+4. recommendations — 2 to 4 short, specific, actionable recommendations for the PM.
+
+Return ONLY a raw JSON object — no markdown, no code fences, no prose before or after — with exactly these keys:
+{
+  "executive_summary": "string",
+  "high_priority_items": [{ "item_id": "string", "feature": "string", "owner": "string", "target_quarter": "string", "why_it_matters": "string" }],
+  "blocked_items": [{ "item_id": "string", "feature": "string", "owner": "string", "blocker": "string", "suggested_action": "string" }],
+  "recommendations": ["string"]
+}

@@ -408,3 +408,18 @@ with st.container(key="card_data"):
             hide_index=True,
         )
 
+# ---------------------------------------------------------------- docs
+st.write("")
+html_block("<div id='docs' class='sf-anchor'></div>")
+with st.container(key="card_docs"):
+    html_block("<div class='sf-h'><h2>Docs</h2></div>"
+               "<div class='sf-cap'>The project write-ups, straight from the repo.</div>")
+    readme = next((p for p in (ROOT / "README.md", ROOT.parent / "README.md") if p.exists()), ROOT / "README.md")
+    doc_files = [("README", readme), ("Walkthrough", ROOT / "docs" / "WALKTHROUGH.md"),
+                 ("Build guide", ROOT / "BUILD-GUIDE.md")]
+    doc_files = [(t, p) for t, p in doc_files if p.exists()]
+    if doc_files:
+        for tab, (_, p) in zip(st.tabs([t for t, _ in doc_files]), doc_files):
+            with tab, st.container(height=460):
+                st.markdown(p.read_text(encoding="utf-8"))
+

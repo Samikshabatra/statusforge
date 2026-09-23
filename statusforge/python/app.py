@@ -220,3 +220,22 @@ if run_clicked:
         except Exception as e:  # noqa: BLE001
             st.error(f"Could not reach the webhook: {e}\n\nIs the workflow published? URL: {webhook_url}")
 
+# ---------------------------------------------------------------- stat cards
+if counts:
+    def stat(ic: str, color: str, n, label: str, sub: str) -> str:
+        return (f"<div class='sf-stat'><div class='ic' style='background:{color}22;color:{color}'>{icon(ic, 26)}</div>"
+                f"<div><div class='n'>{n}</div><div class='l'>{label}</div><div class='x'>{sub}</div></div></div>")
+    blocked = ", ".join(counts["blocked_ids"]) or "None"
+    html_block(f"""
+      <div class='sf-stats'>
+        {stat('database', '#7B93FF', counts['record_count'], 'Roadmap Items', 'From Airtable')}
+        {stat('warning', CORAL, counts['high_count'], 'High Priority', '@here threshold &gt; 5')}
+        {stat('ban', RED, counts['blocked_count'], 'Blocked Items', html.escape(blocked))}
+        {stat('clock', '#5B9CFF', counts['stale_count'], 'Stale Items', f'No update in {STALE_DAYS}+ days')}
+        <div class='sf-stat ok'><div class='ic' style='color:{GREEN}'>{icon('check', 34)}</div>
+          <div style='flex:1'><div class='k'>Scheduled Run</div><div class='n'>{hour_txt}</div>
+          <div class='x'>Daily · n8n Cloud</div>
+          <a href='{n8n_home}' target='_blank'>Open n8n →</a></div></div>
+      </div>
+    """)
+

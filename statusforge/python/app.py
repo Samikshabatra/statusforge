@@ -335,3 +335,59 @@ with st.container(key="card_error"):
         with st.expander("Error-handler workflow JSON"):
             st.json(err_wf, expanded=False)
 
+# ---------------------------------------------------------------- LangGraph
+st.write("")
+html_block("<div id='langgraph' class='sf-anchor'></div>")
+with st.container(key="card_langgraph"):
+    html_block("""
+      <div class='sf-h'><h2>LangGraph architecture</h2></div>
+      <div class='sf-cap'>The same agent core as explicit, testable code — a <code>StateGraph</code> with conditional
+      edges and a self-correction loop.</div>
+    """)
+    g1, g2 = st.columns([1.1, 1], gap="large")
+    with g1:
+        if GRAPH_PNG.exists():
+            st.image(str(GRAPH_PNG), width="stretch")
+        else:
+            st.info("Run `python run_digest.py` once to generate graph.png.")
+    with g2:
+        html_block("<div class='sf-h'><h3>Nodes</h3></div><div style='display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px'>"
+                   + "".join(chip(nm, c) for nm, c in LG_NODES) + "</div>")
+        st.markdown("n8n's LLM nodes are LangChain under the hood, but the framework stays hidden inside the canvas. "
+                    "This standalone `StateGraph` makes the same architecture **explicit, version-controlled, and "
+                    "unit-testable**. n8n ships the reliable daily automation; LangGraph adds a **self-correction "
+                    "loop** (retry ≤3, then raise) where n8n instead fails loud and alerts — two valid reliability idioms.")
+        st.write("")
+        run_lg = st.button("▶  Run the pipeline", type="primary")
+        st.caption("Executes the real LangGraph over the sample CSV. Needs OPENAI_API_KEY in python/.env.")
+
+    if run_lg:
+        with st.spinner("Running the LangGraph agent…"):
+            try:
+                from agent_graph import build_graph  # deferred: needs the API key
+                st.session_state["result"] = build_graph().invoke({"records": load_records()})
+            except Exception as e:  # noqa: BLE001
+                st.session_state["result"] = None
+                st.error(f"Run failed — check OPENAI_API_KEY in python/.env.\n\n{type(e).__name__}: {e}")
+
+    result = st.session_state.get("result")
+    if result and result.get("digest"):
+        d = result["digest"]
+        st.markdown("#### Executive Summary")
+        st.info(d["executive_summary"])
+        st.markdown(f"#### 🔥 High Priority ({len(d['high_priority_items'])})")
+        for i, it in enumerate(d["high_priority_items"], 1):
+            st.markdown(f"**{i}. {it['feature']}**  `{it['item_id']}` · {it.get('owner', '—')} "
+                        f"· {it.get('target_quarter', '—')}  \n{it['why_it_matters']}")
+        st.markdown(f"#### ⛔ Blocked ({len(d['blocked_items'])})")
+        for it in d["blocked_items"]:
+            st.markdown(f"**{it['feature']}**  `{it['item_id']}` · {it.get('owner', '—')}  \n"
+                        f"Blocker: {it['blocker']}  \n➡️ {it['suggested_action']}")
+        st.markdown("#### ✅ Recommendations")
+        for r in d["recommendations"]:
+            st.markdown(f"- {r}")
+        with st.expander("Raw digest JSON"):
+            st.json(d)
+    elif result and not result.get("digest"):
+        st.warning(f"Pipeline ran but produced no digest: {result.get('error')}")
+

@@ -1,0 +1,27 @@
+Paste this into the "Prompt (User Message)" / Text field of the Basic LLM Chain node.
+IMPORTANT: switch the field to Expression mode (click the field, toggle "Expression") before pasting.
+---------------------------------------------------------------------------------------
+
+Today's roadmap export — {{ $json.recordCount }} valid items (one per line, pipe-delimited):
+
+{{ $json.records.map(r => [r.itemId, r.feature, 'Priority: ' + r.priority, 'Status: ' + r.status, 'Owner: ' + r.owner, 'Target: ' + r.targetQuarter, 'Updated: ' + r.lastUpdated, r.description].join(' | ')).join('\n') }}
+
+PRE-COMPUTED COUNTS (deterministic — use as-is, never alter):
+- High priority items: {{ $json.highCount }}
+- Blocked items: {{ $json.blockedCount }} ({{ $json.blockedIds.join(', ') }})
+- Status distribution: {{ Object.entries($json.statusDistribution).map(e => e[0] + ': ' + e[1]).join(', ') }}
+- Invalid records skipped: {{ $json.skippedCount }}
+
+Write the digest content:
+1. executive_summary — 2 to 3 sentences on the overall roadmap state: momentum, concentration of risk, and the single most important thing to act on today.
+2. high_priority_items — exactly the {{ $json.highCount }} High priority items, ranked most-urgent-first, each with a one-sentence why_it_matters.
+3. blocked_items — exactly the {{ $json.blockedCount }} Blocked items, each with what appears to block it (from its description) and one concrete suggested_action to unblock.
+4. recommendations — 2 to 4 short, specific, actionable recommendations for the PM.
+
+Return ONLY a raw JSON object — no markdown, no code fences, no prose before or after — with exactly these keys:
+{
+  "executive_summary": "string",
+  "high_priority_items": [{ "item_id": "string", "feature": "string", "owner": "string", "target_quarter": "string", "why_it_matters": "string" }],
+  "blocked_items": [{ "item_id": "string", "feature": "string", "owner": "string", "blocker": "string", "suggested_action": "string" }],
+  "recommendations": ["string"]
+}

@@ -253,3 +253,59 @@ with st.container(key="card_workflow"):
     else:
         st.info(f"Export the main workflow to `workflows/{MAIN_WF.name}` to draw it here.")
 
+st.write("")
+c_pipe, c_insp, c_rel = st.columns([1.05, 1, 1], gap="medium")
+
+with c_pipe, st.container(key="card_pipeline", height="stretch"):
+    rows = "".join(
+        f"<div class='sf-row'>{chip(name, color)}<span class='r'>{html.escape(role.format(hour=hour_txt))}</span></div>"
+        for name, color, role in N8N_STAGES)
+    html_block(f"""
+      <div class='sf-h'><h3>The pipeline</h3></div>
+      <div class='sf-cap sm'>{len(N8N_STAGES)} stages, colored by what each one is. Deterministic ends bracket
+      the multi-agent middle.</div>{rows}
+    """)
+
+with c_insp, st.container(key="card_inspector", height="stretch"):
+    html_block("""
+      <div id='inspector' class='sf-anchor'></div>
+      <div class='sf-h'><h3>Inspect a node</h3></div>
+      <div class='sf-cap sm'>Pick any node to see its real configuration — the exact code, prompt, or condition
+      from the exported workflow.</div>
+    """)
+    if main_wf:
+        nodes = {n["name"]: n for n in main_wf.get("nodes", [])}
+        names = sorted(nodes, key=lambda k: nodes[k].get("position", [0, 0])[0])
+        choice = st.selectbox("Node", names, label_visibility="collapsed")
+        n = nodes[choice]
+        html_block(f"<div class='sf-type'>Type: <code>{html.escape(n.get('type', ''))}</code> · version "
+                   f"<code>{n.get('typeVersion', '')}</code></div>")
+        p = n.get("parameters", {})
+        if "jsCode" in p:
+            st.code(p["jsCode"], language="javascript", height=330)
+        elif "text" in p and n["type"].endswith("chainLlm"):
+            sys_msgs = p.get("messages", {}).get("messageValues", [])
+            body = (f"# System message\n{sys_msgs[0].get('message', '')}\n\n" if sys_msgs else "") + \
+                   f"# Prompt (user message)\n{p['text']}"
+            st.code(body, language="markdown", height=330, wrap_lines=True)
+        elif "conditions" in p:
+            st.code(json.dumps(p["conditions"], indent=2), language="json", height=330)
+        else:
+            st.code(json.dumps(p, indent=2), language="json", height=330)
+        with st.expander("Full workflow JSON"):
+            st.json(main_wf, expanded=False)
+
+with c_rel, st.container(key="card_reliability", height="stretch"):
+    rungs = "".join(
+        f"<div class='sf-rung'><div class='num'>{i}</div>"
+        f"<div class='tile' style='background:{c}22;color:{c}'>{icon(ic, 22)}</div>"
+        f"<div><b>{t}</b><span>{a}</span></div></div>"
+        for i, (ic, c, t, a) in enumerate(LADDER, 1))
+    html_block(f"""
+      <div id='reliability' class='sf-anchor'></div>
+      <div class='sf-h'><h3>Reliability — a four-rung failure ladder</h3></div>
+      {rungs}
+      <div class='sf-note'>{icon('shield', 26)}All numbers are computed deterministically and validated
+      before anything is posted.</div>
+    """)
+

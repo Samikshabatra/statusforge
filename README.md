@@ -87,6 +87,7 @@ The exact rendered graph (from the LangGraph run) is at
 statusforge/
 ├── README.md                     ← you are here
 ├── roadmap_airtable_export.csv   ← sample data (mirrors the live Airtable base)
+├── snippets/                   ← paste-ready n8n Code-node scripts + agent prompts (numbered)
 ├── workflows/
 │   ├── Roadmap Slack Digest.json      ← the main n8n workflow (exported)
 │   └── Digest Error Handler.json      ← the error-handler workflow (exported)

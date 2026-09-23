@@ -1,0 +1,12 @@
+Paste this into the Slack node of the ERROR workflow (Message Type: Simple Text Message).
+Switch the Message Text field to Expression mode first.
+---------------------------------------------------------------------------------------
+
+🚨 *Roadmap Digest run FAILED*
+
+*Workflow:* {{ $json.workflow.name }}
+*Execution ID:* {{ $json.execution.id }}
+*Failed node:* {{ $json.execution.lastNodeExecuted }}
+*Error:* {{ $json.execution.error.message }}
+
+Open execution: {{ $json.execution.url }}

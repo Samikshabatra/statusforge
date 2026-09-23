@@ -1,16 +1,16 @@
-Item ID,Feature,Status,Priority,Owner,Target Quarter,Description,Last Updated,,
-RM-101,Dark mode for mobile app,In Progress,High,Priya S,Q3 2026,User-requested theme option for iOS/Android apps,28-06-2026,,
-RM-102,Bulk file restore from Trash,Not Started,Medium,Karan M,Q4 2026,Allow restoring 50+ files at once instead of one by one,15-06-2026,,
-RM-103,SSO for Team plan,In Progress,High,Priya S,Q3 2026,SAML-based SSO requested by 3 enterprise prospects,30-06-2026,,
-RM-104,Improved conflict resolution UI,Blocked,High,Ravi T,Q3 2026,Blocked on design review; current conflict copies confuse users,20-06-2026,,
-RM-105,Referral program v2,Not Started,Low,Meera J,Q1 2027,Increase bonus storage cap and add tiered rewards,10-05-2026,,
-RM-106,API rate limit increase for Team,In Progress,Medium,Karan M,Q3 2026,Enterprise customers hitting 1000 req/hr cap,25-06-2026,,
-RM-107,Selective sync on mobile,Not Started,High,Ravi T,Q3 2026,Currently desktop-only; top mobile feature request,29-06-2026,,
-RM-108,Storage usage analytics dashboard,In Progress,Medium,Priya S,Q4 2026,Show breakdown of storage by file type/folder,18-06-2026,,
-RM-109,2FA via hardware key (WebAuthn),Not Started,Medium,Meera J,Q4 2026,Security team requested for enterprise compliance,12-06-2026,,
-RM-110,EU data residency self-serve toggle,Blocked,High,Ravi T,Q3 2026,Currently requires signup-time selection; legal review pending,27-06-2026,,
-RM-111,In-app notification center,Not Started,Low,Karan M,Q1 2027,"Consolidate sync errors, share activity, billing alerts",22-05-2026,,
-RM-112,CLI support for Windows,In Progress,Medium,Meera J,Q4 2026,CLI currently Linux/macOS only,24-06-2026,,
-RM-113,Shared folder activity log,Not Started,Medium,Priya S,Q4 2026,Audit trail for who edited/deleted files in shared folders,14-06-2026,,
-RM-114,Faster initial sync for large libraries,In Progress,High,Ravi T,Q3 2026,Batching small files under 1MB causing slow throughput,30-06-2026,,
-RM-115,Enterprise custom contracts self-serve quote tool,Not Started,Low,Meera J,Q1 2027,Reduce sales-team back and forth for custom quotes,05-05-2026,,
+Item ID,Feature,Status,Priority,Owner,Target Quarter,Description,Last Updated
+RM-101,Dark mode for mobile app,In Progress,High,Priya S,Q3 2026,User-requested theme option for iOS/Android apps,2026-06-28
+RM-102,Bulk file restore from Trash,Not Started,Medium,Karan M,Q4 2026,Allow restoring 50+ files at once instead of one by one,2026-06-15
+RM-103,SSO for Team plan,In Progress,High,Priya S,Q3 2026,SAML-based SSO requested by 3 enterprise prospects,2026-06-30
+RM-104,Improved conflict resolution UI,Blocked,High,Ravi T,Q3 2026,Blocked on design review; current conflict copies confuse users,2026-06-20
+RM-105,Referral program v2,Not Started,Low,Meera J,Q1 2027,Increase bonus storage cap and add tiered rewards,2026-05-10
+RM-106,API rate limit increase for Team,In Progress,Medium,Karan M,Q3 2026,Enterprise customers hitting 1000 req/hr cap,2026-06-25
+RM-107,Selective sync on mobile,Not Started,High,Ravi T,Q3 2026,Currently desktop-only; top mobile feature request,2026-06-29
+RM-108,Storage usage analytics dashboard,In Progress,Medium,Priya S,Q4 2026,Show breakdown of storage by file type/folder,2026-06-18
+RM-109,2FA via hardware key (WebAuthn),Not Started,Medium,Meera J,Q4 2026,Security team requested for enterprise compliance,2026-06-12
+RM-110,EU data residency self-serve toggle,Blocked,High,Ravi T,Q3 2026,Currently requires signup-time selection; legal review pending,2026-06-27
+RM-111,In-app notification center,Not Started,Low,Karan M,Q1 2027,Consolidate sync errors, share activity, billing alerts,2026-05-22
+RM-112,CLI support for Windows,In Progress,Medium,Meera J,Q4 2026,CLI currently Linux/macOS only,2026-06-24
+RM-113,Shared folder activity log,Not Started,Medium,Priya S,Q4 2026,Audit trail for who edited/deleted files in shared folders,2026-06-14
+RM-114,Faster initial sync for large libraries,In Progress,High,Ravi T,Q3 2026,Batching small files under 1MB causing slow throughput,2026-06-30
+RM-115,Enterprise custom contracts self-serve quote tool,Not Started,Low,Meera J,Q1 2027,Reduce sales-team back and forth for custom quotes,2026-05-05

@@ -1,0 +1,9 @@
+Admin success log — a Slack node in the MAIN workflow, placed AFTER "Post Digest",
+posting to #digest-admin (channel id C0BESSSQM6F). Message Type: Simple Text, Expression.
+
+Turns #digest-admin into a complete run log: this success line + the error handler's
+failure alert = every run accounted for (delivered or failed).
+=====================================================================================
+
+✅ *Digest delivered* — 🔥 {{ $('Validate + Count').first().json.highCount }} High · ⛔ {{ $('Validate + Count').first().json.blockedCount }} Blocked · {{ $('Validate + Count').first().json.recordCount }} items{{ $('Validate + Count').first().json.mentionHere ? ' · @here fired' : '' }}
+Posted to <#{{ $json.channel }}> · message ts {{ $json.ts }} · run {{ $('Validate + Count').first().json.runTimestamp }}

@@ -1,0 +1,45 @@
+{
+  "type": "object",
+  "required": ["executive_summary", "high_priority_items", "blocked_items", "recommendations"],
+  "properties": {
+    "executive_summary": {
+      "type": "string",
+      "description": "2-3 sentence overview of roadmap state"
+    },
+    "high_priority_items": {
+      "type": "array",
+      "description": "All High priority items, ranked most-urgent-first",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "feature", "owner", "target_quarter", "why_it_matters"],
+        "properties": {
+          "item_id": { "type": "string" },
+          "feature": { "type": "string" },
+          "owner": { "type": "string" },
+          "target_quarter": { "type": "string" },
+          "why_it_matters": { "type": "string" }
+        }
+      }
+    },
+    "blocked_items": {
+      "type": "array",
+      "description": "All Blocked items with unblock suggestions",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "feature", "owner", "blocker", "suggested_action"],
+        "properties": {
+          "item_id": { "type": "string" },
+          "feature": { "type": "string" },
+          "owner": { "type": "string" },
+          "blocker": { "type": "string" },
+          "suggested_action": { "type": "string" }
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "description": "2-4 short actionable recommendations",
+      "items": { "type": "string" }
+    }
+  }
+}

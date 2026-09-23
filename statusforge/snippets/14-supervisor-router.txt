@@ -1,0 +1,24 @@
+Supervisor (LLM Router) — a Basic LLM Chain node between Merge and the IF node.
+It makes a FUZZY judgment (is deeper dependency analysis warranted?) — the one place an
+LLM router is justified, because the decision is not a hard threshold. Outputs a single
+word YES/NO that the IF node routes on. Two parts: SYSTEM and USER (Expression mode).
+Require Specific Output Format: OFF. Needs its own OpenAI Chat Model sub-node.
+=====================================================================================
+
+--- SYSTEM (Chat Messages -> System) ---
+You are the supervisor of a roadmap-digest pipeline. Your only job is to decide whether a deeper DEPENDENCY analysis of the blocked items is warranted before the digest is written. This is a judgment call, not a count. Answer with a single word only: YES or NO.
+
+--- USER (Prompt / User Message, Expression mode) ---
+You are the router for a roadmap-digest pipeline. Work in two steps.
+
+STEP 1 — Identify the high-priority picture:
+High-priority items ({{ $('Validate + Count').first().json.highCount }}):
+{{ $('Validate + Count').first().json.records.filter(r => r.priority === 'High').map(r => [r.itemId, r.feature, 'Status: ' + r.status, r.description].join(' | ')).join('\n') }}
+Blocked among them: {{ $('Validate + Count').first().json.blockedIds.join(', ') }}
+
+STEP 2 — Decide the route:
+Looking only at the high-priority items above, do any of them have a dependency worth untangling before the digest is written — i.e. a blocker involving a review, another team, or a prerequisite item?
+- If YES, at least one high-priority item has such a dependency: respond YES (route to deeper dependency analysis).
+- If NO, every high-priority item is clear and self-contained: respond NO (go straight to the summary).
+
+Respond with only one word: YES or NO.

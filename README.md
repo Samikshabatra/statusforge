@@ -92,7 +92,10 @@ statusforge/
 │   └── Digest Error Handler.json      ← the error-handler workflow (exported)
 ├── python/
 │   ├── README.md                 ← deep dive on the LangGraph implementation
-│   ├── app.py                    ← Streamlit demo (both tabs — n8n + LangGraph)
+│   ├── app.py                    ← Streamlit dashboard (overview, workflow, inspector, LangGraph, data, docs)
+│   ├── app_legacy.py             ← the previous two-tab Streamlit demo
+│   ├── ui_theme.py               ← dashboard CSS, icons and hero backdrop
+│   ├── workflow_dot.py           ← draws the n8n workflows straight from their JSON exports
 │   ├── agent_graph.py             ← the StateGraph: nodes + conditional edges
 │   ├── agent_prompts.py           ← ChatPromptTemplate for every agent
 │   ├── digest_core.py             ← deterministic core (counts, validation, Block Kit)
@@ -126,7 +129,7 @@ This prints the deterministic counts + the validated digest JSON, and writes
 `graph.png` / `graph.mmd`. If `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` are also set, it
 posts the digest live; otherwise it dry-runs and just prints.
 
-To run the interactive demo instead:
+To run the interactive dashboard instead:
 
 ```bash
 cd python

@@ -309,3 +309,29 @@ with c_rel, st.container(key="card_reliability", height="stretch"):
       before anything is posted.</div>
     """)
 
+# ---------------------------------------------------------------- error handler
+st.write("")
+with st.container(key="card_error"):
+    html_block("""
+      <div class='sf-h'><h2>The error-handler workflow</h2></div>
+      <div class='sf-cap'>A separate n8n workflow. Any failure in the main run triggers it — it alerts
+      #digest-admin, and if Slack itself is down it falls back to email.</div>
+    """)
+    if err_wf:
+        st.graphviz_chart(to_dot(err_wf, nodesep=0.35, ranksep=0.6), width="stretch")
+    html_block("<div class='sf-cap sm'>Test it directly — invokes the error-handler workflow (in production it "
+               "fires automatically on any failed run). Posts a test alert to #digest-admin. "
+               "Webhook URLs live under <b>Webhook settings</b> in the sidebar.</div>")
+    ec1, ec2 = st.columns([1, 3])
+    if ec1.button("▶  Test the error workflow", use_container_width=True):
+        with st.spinner("Triggering the error handler…"):
+            try:
+                trigger(err_url, 60)
+                st.success("Error handler triggered — check **#digest-admin** in Slack.")
+            except Exception as e:  # noqa: BLE001
+                st.error(f"Could not reach it: {e}\n\nAdd a Webhook Trigger (path `test-error`) to the "
+                         "Digest Error Handler workflow, connect it to the Slack node, and publish.")
+    if err_wf:
+        with st.expander("Error-handler workflow JSON"):
+            st.json(err_wf, expanded=False)
+

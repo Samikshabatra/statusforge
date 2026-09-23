@@ -391,3 +391,20 @@ with st.container(key="card_langgraph"):
     elif result and not result.get("digest"):
         st.warning(f"Pipeline ran but produced no digest: {result.get('error')}")
 
+# ---------------------------------------------------------------- roadmap data
+st.write("")
+html_block("<div id='data' class='sf-anchor'></div>")
+with st.container(key="card_data"):
+    html_block(f"""
+      <div class='sf-h'><h2>Roadmap data</h2></div>
+      <div class='sf-cap'>The sample Airtable export ({CSV_PATH.name}) as the deterministic core sees it —
+      staleness is computed, not stored.</div>
+    """)
+    if counts:
+        st.dataframe(
+            [{"Item": r["item_id"], "Feature": r["feature"], "Status": r["status"], "Priority": r["priority"],
+              "Owner": r["owner"], "Quarter": r["target_quarter"], "Last updated": r["last_updated"],
+              "Days since update": r["days_since_update"], "Stale": r["stale"]} for r in counts["records"]],
+            hide_index=True,
+        )
+

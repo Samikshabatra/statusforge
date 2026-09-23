@@ -239,3 +239,17 @@ if counts:
       </div>
     """)
 
+# ---------------------------------------------------------------- workflow
+html_block("<div id='workflow' class='sf-anchor'></div>")
+with st.container(key="card_workflow"):
+    html_block(f"""
+      <div class='sf-h'><h2>The workflow</h2>
+      <a class='sf-btn' href='{n8n_home}' target='_blank'>Open in n8n {icon('external', 16)}</a></div>
+      <div class='sf-cap'>The exact n8n flow, generated from the exported workflow — all {n_nodes} nodes and every
+      connection. Deterministic (teal), LLM (coral), I/O (blue); dashed = the OpenAI model feeding each agent.</div>
+    """)
+    if main_wf:
+        st.graphviz_chart(to_dot(main_wf), width="stretch")
+    else:
+        st.info(f"Export the main workflow to `workflows/{MAIN_WF.name}` to draw it here.")
+

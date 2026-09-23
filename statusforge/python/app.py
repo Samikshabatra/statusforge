@@ -423,3 +423,23 @@ with st.container(key="card_docs"):
             with tab, st.container(height=460):
                 st.markdown(p.read_text(encoding="utf-8"))
 
+# Streamlit intercepts in-page links, so the sidebar nav scrolls to its section itself.
+# mousedown (window, capture) runs before Streamlit's own click handling can swallow the event.
+st.html("""
+<script>
+if (!window.__sfNav) {
+  window.__sfNav = true;
+  const anchorOf = (e) => {
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    return a && document.getElementById(a.getAttribute('href').slice(1)) ? a : null;
+  };
+  window.addEventListener('mousedown', (e) => {
+    const a = anchorOf(e);
+    if (!a || e.button !== 0) return;
+    document.getElementById(a.getAttribute('href').slice(1)).scrollIntoView({block: 'start'});
+    document.querySelectorAll('.sf-nav a').forEach(x => x.classList.toggle('active', x === a));
+  }, true);
+  window.addEventListener('click', (e) => { if (anchorOf(e)) { e.preventDefault(); e.stopPropagation(); } }, true);
+}
+</script>
+""", unsafe_allow_javascript=True)
